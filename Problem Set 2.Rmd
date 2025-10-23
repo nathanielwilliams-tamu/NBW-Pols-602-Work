@@ -1,0 +1,50 @@
+---
+title: "PS2 Final Copy"
+author: "Nathaniel Williams"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r}
+set.seed(123)
+Rv1<- rnorm(20)
+rv2<- rnorm(20)
+#correlation
+cor(Rv1, rv2)
+#Weak Negative correlation -0.16
+#storage
+Cor_df<- data.frame(cor=numeric(100))
+#Create a loop
+for(i in 1:100){
+  V1<-rnorm(1000)
+  V2<-rnorm(1000)
+  Cor_df$cor[i] <- cor(V1,V2)
+}
+Cor_df
+hist(Cor_df$cor)
+```
+We cluster around 0. Which is to be expected as both are just functions of some random noise. No relationship
+```{r}
+# We cluster around zero, no correlation, just random noise
+plot(Cor_df$cor)
+mean(Cor_df$cor)
+#approach zero, true random process, essentially no bias
+median(Cor_df$cor)
+#average and median are essentially zero
+```
+
+```{r}
+#Create random Variable Z
+Z<- rnorm(1000)
+#X and Y are functions of Z plus noise (more randomness)
+X<- Z + rnorm(1000)
+Y<- Z + rnorm(1000)
+cor(Z, X)
+cor(Y, Z)
+cor(Y,X)
+plot(Y,X)
+plot(Z,X)
+plot(Z,Y)
+
+```
+The relationship between z and x is a spurios one as we know that they are not factors of each other and the real unit of interest is Z
