@@ -1,0 +1,160 @@
+---
+title: "R Problem set 3 at 2"
+author: "Nathaniel Williams"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+#Reading 
+
+
+1. Research Goals
+  Goal of the study is casual inference, The causal effect of different variables and the occurrence of Civil War. The authors state their desire to parse through a few different common reasons in the literature, and propose a new framework of understanding
+A strength of how the set their hypothesis up is empirically testing the hypothesis of the previous standings in the literature (ethnicity and religious diversity) and then their own so their is a direct comparison built from the same observations. A weakness of this paper overall is that it is a prime example of "Kitchen Sink Regression," and it is hard to parse out and make sense of the sheer number of hypothesis and test. 
+
+2. Estimates
+
+The theoretical estimands for the hypothesis are the causal effect of some ethnic/religious diversity variable or some structural factor favoring insurgency (terrain, state weakness, geography) on the outbreak of civil war.
+
+The empirical estimands are the coefficient of the different independent variables in a logit regression model on the binary dv (No civil war or civil war)
+
+Certain variables are more unclear than others.
+
+For hypothesis 7, which is "Among countries with an ethnic minority comprising at least 5% of the population, greater ethnic diversity should be associated with a higher risk of ethnic civil war." 
+The goal is to measure for ethnic civil wars, ones where fighters were majority mobilized on ethnic lines. For an ethnic civil war, you must have a ethnic minority present,with the capability of plausibly rising up and engaging in conflict. hence the floor condition of 5%. 
+Presence of ethnic minorities -> higher likelihood of ethnic conflict
+The issue here is that the authors are claiming a rate increase in comparison to nations with no minorities above 5%, but if there are no ethnic minorities (or they are so small as to be insignificant) how could an ethnic conflict ever occur in the comparison group? You are virtually guaranteed to see an increase when moving from an essentially impossible environment for ethnic conflict to a possible one. 
+
+Another example of a possible problem is in hypothesis 8 which says "The presence of rough terrain, poorly served roads, at a distance from the centers of state power, should favor insurgency and civil war. So should the availability of foreign cross-border sanctuaries and a local population that can be induced not to denounce insurgents to government agents."
+
+This is all focused on describing the observation that having an environment for insurgency leads to civil war. What that environment is is here classified through measures such as terrain or distance from state-power centers.
+The issue is that terrain and size of the country (distance from centers of power) are impacted from how borders are drawn. Many nations of interest for this study in Africa had borders imposed on them by European power following the world wars. This also means that borders impact ethnicity within the country as many were cut up by the partition.
+
+Therefore, this matter of geography is not independent from issues such as whether the country was a former colony, whether it created or had its borders imposed, and the type of ethnic groups that end up being majority or minority.
+
+
+3. Id
+The authors use several observations in a multivariate logistic regression over a cross-national time survey. 
+Assumptions are:
+  All confounders have been accounted and controlled for
+  Explanatory variables are lagged by one year which prevents simultenaity bias
+  The proxy variables used are accurate measures of the real world event they are interested in
+  
+4. 
+It is unlikely that the goal of causal inference is met, and that the all else equal assumptions of regression has been met. The paper is too broad in its goals and it is unable to satisfy the idea that it has controlled for all confounders. The empirical strategy for some hypothesis that are more simple appear okay (for example ethnic diversity in a nation is generally easy to accurately measure), but many have holes that can be poked (such as H7 and H8). Other proxies of question are items such as terrain being categorized by mountainous regions, not accounting for more diverse biomes that may still create issues, such as jungles that are still prone to guerrilla warfare. 
+
+5.
+The paper can still be important, it shifts the debate away from base ethnic or religious grievances toward material and structural explanations such as state capacity and infrastructure. It also suggest a need for more critical thinking in policies aimed at stability beyond new borders or blind democracy building. Instead emphasizing the need for strong institutional and infrastructure building, in addition to policies of security aid. 
+
+
+#Sim
+
+```{r}
+library(dplyr)
+#Load in data set
+Thermo<- read.csv('https://raw.githubusercontent.com/MLBurnham/pols_602/refs/heads/main/data/thermometers.csv')
+head(Thermo)
+#New age variable, year of study (2017) minus birth year
+Thermo$Age<- 2017 - Thermo$birth_year
+#Median of union thermoter,remove not observed 
+median(Thermo$ft_unions, na.rm = TRUE)
+#51
+
+#standard deviation to access the spread of the data
+sd(Thermo$ft_unions, na.rm = TRUE)
+#31.7
+
+#Examples for each category in the demographic
+median(Thermo$ft_unions[Thermo$sex=='Male'], na.rm = TRUE)
+#50
+sd(Thermo$ft_unions[Thermo$sex=='Male'],na.rm = TRUE)
+#32.8
+median(Thermo$ft_unions[Thermo$sex=='Female'], na.rm = TRUE)
+#56
+sd(Thermo$ft_unions[Thermo$sex=='Female'], na.rm = TRUE)
+#30.2
+#Checking that there are no other categories (other, prefer not to say)
+unique(Thermo$sex)
+
+#Histograms
+#Full Sample
+hist((Thermo$ft_unions),
+main = 'Union Thermometer Full Sample', xlab = 'Union Thermometer')
+#Just male
+hist(Thermo$ft_unions[Thermo$sex=='Male'], main = 'Union Thermometer Male', xlab = 'Union Thermometer')
+#Just female
+hist(Thermo$ft_unions[Thermo$sex=='Female'], main = 'Union Thermometer Female', xlab = 'Union Thermometer')
+```
+The central tendency of the unions thermometer (the median) is 51
+The union thermoter has a high spread, one change in standard deviation is plus or minus 31.7 points on the 100 scale. 
+The central tendency for males is 50 and 56 for females
+The spread is higher than the sample mean at 32.8 for males, and slightly lower for females at 30.2
+
+
+```{r}
+#Fit A regression model
+Model1<-lm(ft_unions ~ sex, data=Thermo)
+
+summary(Model1)
+```
+$\hat{ftunions} = 57.45 - 8.53 Male$
+
+```{r}
+Predictions <- predict(Model1)
+summary(Predictions)
+Predmeans<-predict(Model1, newdata=data.frame(sex=unique(Thermo$sex)), interval = 'confidence')
+Predmeans
+# The conditional means within 95% confidence
+
+```
+
+```{r}
+#Democrat and Republican Data frame
+#Make a new data frame that is just a subset only pulling democrat and republicans
+ThermDR<- subset.data.frame(Thermo, party_id %in% c('Democrat','Republican'))
+#Use if else to override the party_id variable with 1 for democrats and 0 for republicans
+ThermDR$party_id <- ifelse(ThermDR$party_id == 'Democrat',1,0)
+
+#Build a predictive model
+Prmodel<-lm(party_id ~ ft_unions * ft_immig + sex, data=ThermDR)
+# Better feelings toward unions and immigrants would suggest liberal ideology and more alignment with democrats, 
+summary(Prmodel)
+
+```
+$\hat{partyid} = .05 + .006 ftunions + .001 ftimmig - .05 Male + 0.000035 ftunion*ftimmig$
+
+Party id is binary so the coefficients represent percentage point increases in the odds of being a democrat (1). 
+
+
+
+
+```{r}
+# Plot as feeling thermometer changes
+# Generate sequence of thermometer values to substitute into model
+ft_seq <- seq(0, 100,length.out = 200)
+
+# Create a simulated data set that holds other variables constant to isolate effect of just increasing the immigrant thermometer 
+pred_data <- data.frame(
+  sex = "Male",
+  ft_unions = 0 ,
+  ft_immig = ft_seq
+)
+
+# Making a variable with the predictions from the model and simmed data
+pred_vals <- predict(Prmodel, newdata = pred_data)
+
+# Plot
+plot(ft_seq, pred_vals,
+     type = "l",
+     lwd = 2,
+     xlab = "Immigrant Feeling Thermometer",
+     ylab = "Predicted Probability of Being a Democrat",
+     main = "Predicted Party ID as Immigrant thermom Changes")
+
+
+```
+ Having a positive opinion of immigrants leads to up to a 10 percentage point increase in the odds of being a democrat, interestingly only turns negative when extremely close to zero.
+ I would not see this as causal as I do not think the assumption of all confounders being controlled for has been met. 
+ 
+ 
+
+

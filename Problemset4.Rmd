@@ -1,0 +1,111 @@
+---
+title: "Problem set 4"
+author: "Nathaniel Williams"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+# Part 1 Reading
+
+## 1. What is the difference between a confounder and a collider? How should you address each in your model?
+
+-   A confounder is something that influences both the treatment and outcome variable of your model ie X->Y but Z->X & Z->Y
+-   You should adjust your model to account for a confounder, otherwise you will have a biased result. We condition on the collider to cut off the backdoor path
+-   A Collider is something that is impacted by both your treatment and outcome variable ie X->Collider & Y-> Collider
+-   You should not condition on a Collider, doing so will cause a biased result that introduces correlation to X and Y that is not there.
+
+## 2. How can conditioning on a collider create bias?
+-  The two variables are not correlated on the pathway to the collider but conditoning on it causes them to be correlated. It causes some spurious association between two otherwise non related variables.
+
+## 3. Why can't statistical summaries or correlations alone tell us whetehr to control for a variable?
+You first need to understanding the type of relationship you wish to access prediction or explanation. Then you need to thoughtfully access the directional assocation of variables. This requires common sense and consideration on the part of the researcher as they design their model. Throwing every possible variable into your model can open many pathways that are not actually present and misrepresent both the direction and the size of effects. 
+
+## 4. What is meant by a kitchen sink regression, and what is wrong with it.
+A kitchen sink regression is simply throwing all possible variables you can think of into your model, regardless of considering whether they are or arent actually related to your outcome. Which is then followed by some variable selection strategy to impact you p-value and posit a significant relationship. Other studies that then rely on the findings of these papers further propogate the spurious arguments made.
+
+## 5. What is a backdoor path and how does multiple regression help block these paths?
+
+A backdoor path is a non causal path that creates a correlation between two variables even if there was not one. Conditioning on this variable in a multiple regression allows us to "block" the pathway and get an unbiased effect estimate (assuming all else potential confounders are controlled for). 
+
+
+# Part 2: Simulation
+
+Need:
+
+Treatment = X = Costly Weather events = CWE
+
+Outcome = Y = Votes for green party = GreenVote
+
+Confounder  = State Infrastructure = SI
+
+Mediator = Population/demographics = demo
+
+Collider = Environmental Policy = EP
+
+ExogX(instrument) = Temperature = temp
+
+ExogY = Electoral System = ES
+
+The theory here is that voters who experience costly weather events will be more likely to consider a green party vote. State infrastructure/weather prep can effect how costly a weather event is. A Snow storm in east Texas has more economic effects than one in Michigan where it is common and expected, and thus prepared for. But better weather pre or state infrastructure may be caused by environmentally conscious voters that prefer to vote green party. Environmental policy changes can be caused by a recent costly weather event that results in change, or by the election of green party candidates who push that policy. 
+The electoral system may have an effect on green party vote because it decides whether it is a viable party, green parties get more votes in multi-party governments (more than 2) or proportional representation systems. 
+
+Demographics are a mediator in that the occurrence of costly weather events may impact peoples decision to move somewhere, and these people may have certain political preferences. 
+
+Temperature is the instrument of choice in that above average or below average temperatures during election months may force voters to think about current environmental conditions. Particularity hot days might cause memories of droughts or particularly cold days of recent damaging snow events, high humidity with flooding and so forth. 
+
+```{r}
+set.seed(9115)
+n<- 500
+# First make the unaffected variables
+#confounder
+SI<-rnorm(n, mean=20, sd=1)
+#instrument
+temp<-rnorm(n, mean=50, sd=1)
+#Exog Y
+ES<-rnorm(n, mean=85, sd=1)
+#Make the x, it is affected bu the confounder and instrument
+CWE<- temp*.3 + SI*.5 + rnorm(n)
+#Mediator Is caused by X
+demo<- CWE*.7 + rnorm(n)
+# Y is impacted by confounder, X, exgoenous variable and the mediator
+GreenVote<- CWE*.4 + SI*.2 + ES* .3 + demo*.15 + rnorm(n)
+#Collider is impacted by both x and y
+EP<- CWE*.3 + GreenVote*.4 + rnorm(n)
+```
+
+
+```{r}
+# 1. Fit a model that recovers the direct affect of the treatment on the outcome
+ModelT<-lm(GreenVote~CWE+SI+demo+temp)
+summary(ModelT)
+
+```
+When Condition on X, the Confounder, the mediator and the experiment we get the proper direct effect .4
+
+```{r}
+#2. Total effect
+ModelTE<-lm(GreenVote~CWE+demo)
+summary(ModelTE)
+```
+To get the total effect you only condition on the confounder, this is the average causal effect of X on Y for a one unit increase.
+Mediator and instrument were removed from the model
+
+```{r}
+#3. How do results change when accounting for collider, exog iv, or the instrument (individually not all at once)
+ColliderModel<-lm(GreenVote~CWE+EP)
+summary(ColliderModel)
+
+ExogIvModel<-lm(GreenVote~CWE+ES)
+summary(ExogIvModel)
+
+InstrModel<-lm(GreenVote~CWE+temp)
+summary(InstrModel)
+```
+The Collider model suggest that there is a signifcant relationship where the collider (environmental policy) is causing .4 of the Green party vote. But in reality it is green party vote that is causing the policy. This is a false relationship. 
+
+The exogneous Y variable model causes the predicted relationship between weather events and green party vote to be far greater than it actually is (.6 vs .4)
+
+Accounting for only weather events and the temperature again over inflates the relationship, but also suggest a negative relationship between vote and temperature, when we know that the instrument causes part of weather events (x) and therefore does have a positive relationship with green party vote (Y)
+
+### 4. How to choose what variables to include in the model. 
+Choosing what variables to include depends on whether we are interested in the total effect of weather on voting or the direct effect. In general total effect is the standard and also what I am interested in. Therefore the model that utilizes the instrument and only controls for the observed confounder, and not the mediator. Is the model that I would use.
